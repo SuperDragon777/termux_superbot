@@ -95,6 +95,8 @@ async def input_handler(application):
                         message = parts_send[1]
                         try:
                             bot = Bot(token=BOT_TOKEN)
+                            if user_id == "superuser":
+                                user_id = SUPERUSER_ID
                             await bot.send_message(chat_id=int(user_id), text=message)
                             print("Message sent successfully")
                         except ValueError:

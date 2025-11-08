@@ -48,13 +48,19 @@ async def send_message(text):
         print(f"[ERROR] {e}")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    superuser_msg = False
     """Handle incoming messages from users"""
     if update.message and update.message.text:
         user_id = update.message.from_user.id
+        if user_id == SUPERUSER_ID:
+            superuser_msg = True
         username = update.message.from_user.username or "unknown"
         first_name = update.message.from_user.first_name or ""
         text = update.message.text
-        print(f"[MESSAGE] @{username} (ID: {user_id}, {first_name}): {text}")
+        if superuser_msg == True:
+            print(f"[MESSAGE] @{username} (superuser) (ID: {user_id}, {first_name}): {text}")
+        else:
+            print(f"[MESSAGE] @{username} (ID: {user_id}, {first_name}): {text}")
 
 async def input_handler(application):
     """Phase input command handler"""

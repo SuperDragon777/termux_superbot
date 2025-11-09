@@ -52,17 +52,15 @@ async def send_message(text):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global messages_received
-    superuser_msg = False
     """Handle incoming messages from users"""
     if update.message and update.message.text:
         messages_received += 1
         user_id = update.message.from_user.id
-        if user_id == SUPERUSER_ID:
-            superuser_msg = True
+        superuser_msg = user_id == SUPERUSER_ID
         username = update.message.from_user.username or "unknown"
         first_name = update.message.from_user.first_name or ""
         text = update.message.text
-        if superuser_msg == True:
+        if superuser_msg:
             print(f"[MESSAGE] @{username} (superuser) (ID: {user_id}, {first_name}): {text}")
         else:
             print(f"[MESSAGE] @{username} (ID: {user_id}, {first_name}): {text}")

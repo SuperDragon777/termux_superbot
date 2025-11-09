@@ -12,7 +12,7 @@ from telegram import Update
 from datetime import datetime
 
 debug_mode = True
-version = "1.5"
+version = "1.6"
 
 load_dotenv()
 
@@ -67,6 +67,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             print(f"[MESSAGE] @{username} (ID: {user_id}, {first_name}): {text}")
 
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /help command from any user"""
+    help_text = """
+<b>📚 Доступные команды: </b>
+
+- <b>/status</b> - Показать статус бота
+- <b>/help</b> - Показать эту справку
+
+    """.format(version)
+    
+    await update.message.reply_text(help_text, parse_mode="HTML")
+    
+    if debug_mode:
+        print(f"[DEBUG] Help command used by user {update.message.from_user.id}")
+
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /status command from any user"""
     global bot_start_time
@@ -82,7 +97,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 <pre><b>Status:</b> Online
 <b>Uptime:</b> {uptime.days}d {hours}h {minutes}m {seconds}s
-<b>Version:</b> {version}</pre>
+<b>Version:</b> v{version}</pre>
 
 Bot alive! 🚀
         """
@@ -212,6 +227,7 @@ async def main():
     
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("status", status_command))
+    application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("stop", stop_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     

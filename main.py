@@ -34,7 +34,6 @@ if SUPERUSER_ID == 0:
     
 bot_running = True
 application = None
-polling_task = None
 bot_start_time = None
 messages_received = 0
 
@@ -46,9 +45,10 @@ async def send_message(text):
             chat_id=SUPERUSER_ID,
             text=text
         )
-        
     except TelegramError as e:
         print(f"[ERROR] {e}")
+    finally:
+        await bot.close()
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global messages_received
@@ -65,21 +65,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             print(f"[MESSAGE] @{username} (ID: {user_id}, {first_name}): {text}")
 
+def calculate_uptime():
+    """Calculate uptime correctly"""
+    global bot_start_time
+    uptime = datetime.now() - bot_start_time
+    days = uptime.days
+    hours = (uptime.seconds // 3600)
+    minutes = (uptime.seconds % 3600) // 60
+    seconds = uptime.seconds % 60
+    return days, hours, minutes, seconds
+
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /status command from any user"""
     global bot_start_time
     
     if bot_running:
-        uptime = datetime.now() - bot_start_time
-        hours = uptime.seconds // 3600
-        minutes = (uptime.seconds % 3600) // 60
-        seconds = uptime.seconds % 60
+        days, hours, minutes, seconds = calculate_uptime()
         
         status_text = f"""
 🤖 <b>Bot status:</b>
 
 <pre><b>Status:</b> Online
-<b>Uptime:</b> {uptime.days}d {hours}h {minutes}m {seconds}s
+<b>Uptime:</b> {days}d {hours}h {minutes}m {seconds}s
 <b>Version:</b> {version}</pre>
 
 Bot alive! 🚀
@@ -107,18 +114,15 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"[INFO] Bot shutdown initiated by superuser")
     print("Stopping bot...")
     bot_running = False
-    await application.updater.stop()
+    await application.stop()
 
 def print_console_status():
     """Print detailed bot status in console"""
     global bot_start_time, messages_received
     
-    uptime = datetime.now() - bot_start_time
-    hours = uptime.seconds // 3600
-    minutes = (uptime.seconds % 3600) // 60
-    seconds = uptime.seconds % 60
+    days, hours, minutes, seconds = calculate_uptime()
     
-    uptime_str = f"{uptime.days}d {hours}h {minutes}m {seconds}s"
+    uptime_str = f"{days}d {hours}h {minutes}m {seconds}s"
     debug_str = "ON" if debug_mode else "OFF"
     status_str = "Online ✅"
     
@@ -132,13 +136,16 @@ def print_console_status():
 
 async def input_handler(application):
     """Phase input command handler"""
-    global bot_running, polling_task
+    global bot_running
     
     loop = asyncio.get_event_loop()
     
     while bot_running:
         try:
-            user_input = await loop.run_in_executor(None, input, "> ")
+            user_input = await asyncio.wait_for(
+                loop.run_in_executor(None, input, "> "),
+                timeout=1.0
+            )
             user_input = user_input.strip()
             
             parts = user_input.split(maxsplit=1)
@@ -151,7 +158,7 @@ async def input_handler(application):
                 if debug_mode:
                     print(f"[DEBUG] Exit message sent to superuser")
                 print("Stopping bot...")
-                await application.updater.stop()
+                await application.stop()
                 break
             
             elif command == "status":
@@ -173,6 +180,7 @@ async def input_handler(application):
                                 user_id = SUPERUSER_ID
                             await bot.send_message(chat_id=int(user_id), text=message)
                             print("Message sent successfully")
+                            await bot.close()
                         except ValueError:
                             print("[ERROR] Invalid user ID format")
                         except TelegramError as e:
@@ -190,11 +198,13 @@ Available commands:
             else:
                 print("Unknown command. Type 'help' for a list of commands.")
         
+        except asyncio.TimeoutError:
+            continue
         except Exception as e:
             print(f"[ERROR] {e}")
 
 async def main():
-    global bot_running, application, polling_task, bot_start_time
+    global bot_running, application, bot_start_time
     
     bot_start_time = datetime.now()
     
@@ -215,7 +225,6 @@ async def main():
     
     async with application:
         await application.start()
-        polling_task = asyncio.create_task(application.updater.start_polling())
         await input_handler(application)
         await application.stop()
 

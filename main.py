@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 from telegram import Bot
 from telegram.error import TelegramError
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, MessageHandler, filters, ContextTypes, CommandHandler
 from telegram import Update
 
 debug_mode = True
@@ -61,6 +61,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"[MESSAGE] @{username} (superuser) (ID: {user_id}, {first_name}): {text}")
         else:
             print(f"[MESSAGE] @{username} (ID: {user_id}, {first_name}): {text}")
+
+async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /stop command from superuser"""
+    global bot_running
+    
+    user_id = update.message.from_user.id
+    
+    if user_id != SUPERUSER_ID:
+        await update.message.reply_text("У вас нет прав на выполнение этой команды. ❌")
+        print(f"[WARNING] Unauthorized /stop command attempt by user ID: {user_id}")
+        return
+    
+    await update.message.reply_text("Бот завершает работу. 👋")
+    print(f"[INFO] Bot shutdown initiated by superuser")
+    print("Stopping bot...")
+    bot_running = False
+    await application.updater.stop()
 
 async def input_handler(application):
     """Phase input command handler"""
@@ -139,6 +156,7 @@ async def main():
     print("\nFor command list type help\n")
     
     application = Application.builder().token(BOT_TOKEN).build()
+    application.add_handler(CommandHandler("stop", stop_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     async with application:

@@ -1,7 +1,3 @@
-# @termux_superbot
-# my telegram id: 2031050089
-
-
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -13,6 +9,7 @@ from datetime import datetime
 
 debug_mode = True
 version = "1.5"
+MAX_MESSAGE_SIZE = 512
 
 load_dotenv()
 
@@ -82,19 +79,11 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if bot_running:
         days, hours, minutes, seconds = calculate_uptime()
         
-        status_text = f"""
-🤖 <b>Bot status:</b>
-
-<pre><b>Status:</b> Online
-<b>Uptime:</b> {days}d {hours}h {minutes}m {seconds}s
-<b>Version:</b> {version}</pre>
-
-Bot alive! 🚀
-        """
+        status_text = f"🤖 Status: Online\nUptime: {days}d {hours}h {minutes}m {seconds}s\nVersion: {version}\n\nBot alive! 🚀"
     else:
         status_text = "Something went wrong. ❌"
     
-    await update.message.reply_text(status_text, parse_mode="HTML")
+    await update.message.reply_text(status_text)
     
     if debug_mode:
         print(f"[DEBUG] Status command used by user {update.message.from_user.id}")
@@ -106,11 +95,11 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     
     if user_id != SUPERUSER_ID:
-        await update.message.reply_text("У вас нет прав на выполнение этой команды. ❌")
+        await update.message.reply_text("No permission. ❌")
         print(f"[WARNING] Unauthorized /stop command attempt by user ID: {user_id}")
         return
     
-    await update.message.reply_text("Бот завершает работу. 👋")
+    await update.message.reply_text("Bot shutting down. 👋")
     print(f"[INFO] Bot shutdown initiated by superuser")
     print("Stopping bot...")
     bot_running = False
@@ -134,6 +123,12 @@ def print_console_status():
     print(f"Superuser ID:           {str(SUPERUSER_ID)}")
     print(f"Debug Mode:             {debug_str}\n")
 
+def truncate_message(text, max_size=MAX_MESSAGE_SIZE):
+    """Truncate message if it exceeds max size"""
+    if len(text.encode('utf-8')) > max_size:
+        text = text[:max_size-3] + "..."
+    return text
+
 async def input_handler(application):
     """Phase input command handler"""
     global bot_running
@@ -154,7 +149,7 @@ async def input_handler(application):
             
             if command == "exit":
                 bot_running = False
-                await send_message("Бот завершает работу. 👋")
+                await send_message("Bot shutting down. 👋")
                 if debug_mode:
                     print(f"[DEBUG] Exit message sent to superuser")
                 print("Stopping bot...")
@@ -178,6 +173,9 @@ async def input_handler(application):
                             bot = Bot(token=BOT_TOKEN)
                             if user_id == "superuser":
                                 user_id = SUPERUSER_ID
+                            
+                            message = truncate_message(message)
+                            
                             await bot.send_message(chat_id=int(user_id), text=message)
                             print("Message sent successfully")
                             await bot.close()
@@ -191,7 +189,7 @@ async def input_handler(application):
 Available commands:
     exit              - turn off the bot
     status            - status of the bot
-    send [ID] [MSG]   - send message to user with specified id
+    send [ID] [MSG]   - send message to user
     help              - show this help message
                 """)
             
@@ -208,7 +206,7 @@ async def main():
     
     bot_start_time = datetime.now()
     
-    await send_message("Бот онлайн! 🚀")
+    await send_message("Bot online! 🚀")
         
     if debug_mode:
             print(f"[DEBUG] Hello message sent to superuser")
